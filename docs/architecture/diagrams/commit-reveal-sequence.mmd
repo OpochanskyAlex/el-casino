@@ -1,0 +1,78 @@
+sequenceDiagram
+    autonumber
+    participant Browser as Player (Browser)
+    participant App as Next.js App
+    participant MM as MetaMask
+    participant Contract as CasinoV1 (Sepolia)
+
+    Note over Browser,Contract: Phase 0 — Connect & Fund
+    Browser->>App: Open app
+    App->>MM: eth_requestAccounts
+    MM-->>Browser: Approval prompt
+    Browser-->>MM: Approve
+    MM-->>App: account address
+    App->>MM: eth_chainId
+    MM-->>App: chainId
+    App->>App: Check chainId == 0xaa36a7 (Sepolia)
+
+    Note over Browser,Contract: Phase 1 — Deposit
+    Browser->>App: Enter deposit amount, click Deposit
+    App->>App: Client-side validation (amount, wallet balance)
+    App->>MM: Request deposit() tx (msg.value = amount)
+    MM-->>Browser: Sign prompt
+    Browser-->>MM: Sign
+    MM->>Contract: deposit() payable
+    Contract->>Contract: playerBalances[player] += msg.value
+    Contract-->>App: emit Deposited(player, amount)
+    App->>App: await tx.wait(1)
+    App->>Contract: getBalance(player)
+    Contract-->>App: updated balance
+    App-->>Browser: Casino balance updated
+
+    Note over Browser,Contract: Phase 2 — Commit Bet
+    Browser->>App: Select Heads/Tails, enter bet amount, click Play
+    App->>App: Client-side validation (amount, pending count, casino balance)
+    App->>App: Generate random secret (uint256)
+    App->>App: commitHash = keccak256(abi.encodePacked(secret))
+    App->>App: Store secret locally (memory/state)
+    App->>MM: Request commitBet(betAmount, commitHash, choice) tx
+    MM-->>Browser: Sign prompt
+    Browser-->>MM: Sign
+    MM->>Contract: commitBet(betAmount, commitHash, choice) non-payable
+    Contract->>Contract: Validate bet range, pending count, liquidity (BR4/BR5)
+    Contract->>Contract: playerBalances[player] -= betAmount
+    Contract->>Contract: bets[betId] = {Committed, ...}
+    Contract->>Contract: totalPendingReserved += betAmount * 196 / 100
+    Contract-->>App: emit BetCommitted(betId, player, amount, commitHash, choice, blockNumber)
+    App-->>Browser: Show "Waiting for result..." with betId
+
+    Note over Browser,Contract: Phase 3 — Operator Reveal (backend)
+    App->>Contract: Watch for BetCommitted events (operator bot)
+    Contract-->>App: BetCommitted event received
+    App->>App: Operator bot retrieves secret for betId
+    App->>Contract: revealBet(betId, secret) [onlyOwner]
+    Contract->>Contract: Verify keccak256(secret) == commitHash
+    Contract->>Contract: outcome = keccak256(secret, blockhash(commitBlock)) % 2
+    Contract->>Contract: if win: playerBalances[player] += payout (1.96x)
+    Contract->>Contract: if loss: houseBalance += betAmount
+    Contract->>Contract: totalPendingReserved -= betAmount * 196 / 100
+    Contract->>Contract: bets[betId].status = Win | Loss
+    Contract-->>App: emit BetRevealed(betId, player, choice, outcome, amount, payout, secret, blockHashUsed)
+
+    Note over Browser,Contract: Phase 4 — Frontend Shows Result
+    App->>App: Listen for BetRevealed event (wagmi watchContractEvent)
+    App-->>Browser: Show Win/Loss result, updated balance
+
+    Note over Browser,Contract: Phase 5 — Withdraw
+    Browser->>App: Enter withdraw amount, click Withdraw
+    App->>MM: Request withdraw(amount) tx
+    MM-->>Browser: Sign prompt
+    Browser-->>MM: Sign
+    MM->>Contract: withdraw(amount) nonReentrant
+    Contract->>Contract: playerBalances[player] -= amount (before transfer)
+    Contract->>Contract: transfer amount wei to player
+    Contract-->>App: emit Withdrawn(player, amount)
+    App->>App: await tx.wait(1)
+    App->>Contract: getBalance(player)
+    Contract-->>App: updated balance
+    App-->>Browser: Balance updated; ETH back in wallet

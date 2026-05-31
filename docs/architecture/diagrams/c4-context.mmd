@@ -1,0 +1,20 @@
+C4Context
+    title El Casino — C4 Context Diagram
+
+    Person(player, "Player", "Browser user with MetaMask wallet on Sepolia testnet")
+    Person(operator, "Operator / House", "Contract owner; funds house pool and runs reveal bot")
+
+    System(casino, "El Casino", "Next.js web app + CasinoV1 smart contract. Allows connect, deposit, play, withdraw on Sepolia.")
+
+    System_Ext(metamask, "MetaMask", "Browser wallet extension. Signs and submits transactions. Manages player private key.")
+    System_Ext(sepolia, "Ethereum Sepolia", "Proof-of-stake testnet. Executes CasinoV1.sol. Source of block hashes used in commit-reveal.")
+    System_Ext(etherscan, "Sepolia Etherscan", "Public block explorer. Hosts verified contract source, ABI, and event logs for on-chain audit.")
+    System_Ext(rpc, "Sepolia RPC Node", "Alchemy or Infura JSON-RPC endpoint. Relays read calls and signed transactions to the network.")
+
+    Rel(player, casino, "Visits app, places bets, deposits and withdraws ETH", "HTTPS / Browser")
+    Rel(operator, casino, "Deploys contract, funds house pool, runs reveal bot", "CLI / ethers.js script")
+    Rel(casino, metamask, "Requests account and signature", "EIP-1193 window.ethereum")
+    Rel(casino, rpc, "Reads contract state, submits transactions", "JSON-RPC (ethers.js / wagmi)")
+    Rel(rpc, sepolia, "Broadcasts transactions, queries state", "JSON-RPC")
+    Rel(player, etherscan, "Audits BetRevealed events and contract source", "HTTPS / Browser")
+    Rel(casino, etherscan, "Links to contract and tx receipts in UI", "HTTPS URL")

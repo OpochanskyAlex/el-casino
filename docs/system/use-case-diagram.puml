@@ -1,0 +1,55 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecaseBorderColor #555555
+skinparam usecaseBackgroundColor #FAFAFA
+skinparam actorBorderColor #333333
+skinparam arrowColor #555555
+
+actor "Player" as Player
+actor "Operator\n(Contract Owner)" as Operator
+actor "Blockchain\n(Sepolia)" as Blockchain
+
+rectangle "El Casino" {
+  ' UC1: MetaMask RPC calls only (eth_chainId, eth_requestAccounts); no on-chain tx — Blockchain actor not connected intentionally
+  usecase "UC1\nConnect Wallet" as UC1
+  usecase "UC2\nDeposit Funds" as UC2
+  usecase "UC3\nCommit Bet" as UC3
+  usecase "UC4\nReveal Bet" as UC4
+  usecase "UC5\nClaim Timeout Refund" as UC5
+  usecase "UC6\nWithdraw Balance" as UC6
+  usecase "UC7\nView Game History" as UC7
+  usecase "UC8\nVerify Fairness On-Chain" as UC8
+}
+
+' Player associations
+Player --> UC1
+Player --> UC2
+Player --> UC3
+Player --> UC5
+Player --> UC6
+Player --> UC7
+Player --> UC8
+
+' Operator associations
+Operator --> UC4
+
+' Blockchain (system) participates in all on-chain operations
+Blockchain --> UC2
+Blockchain --> UC3
+Blockchain --> UC4
+Blockchain --> UC5
+Blockchain --> UC6
+Blockchain --> UC7
+Blockchain --> UC8
+
+' Dependencies and extensions
+UC2 .down.> UC1 : <<include>>
+UC3 .down.> UC1 : <<include>>
+UC3 .down.> UC2 : <<include>>
+UC6 .down.> UC1 : <<include>>
+
+UC5 .right.> UC3 : <<extend>>\n[timeout elapsed]
+UC4 .left.> UC3 : <<extend>>\n[operator reveals]
+
+@enduml

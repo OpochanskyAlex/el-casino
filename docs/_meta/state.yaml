@@ -1,0 +1,44 @@
+workflow: doc-from-idea
+run_mode: full
+stages_requested: [ba, sa, arch, pm]
+stage: pm-review
+last_agent: project-manager
+last_score: 8.3
+last_score_at: 2026-05-31T02:15Z
+revisions:
+  brd: 1
+  srs: 1
+  arch: 1
+versions:
+  brd: 0.1
+  srs: 0.1
+  arch: 0.1
+  plan: 0.1 (pending review)
+open_questions:
+  - Q1: FR17/FR18 single vs dual require() — architect decision
+  - Q2: Payout overflow check — trivially safe; architect confirm
+  - Q3: 256-block timeout — RESOLVED by operator (confirmed 256 blocks)
+  - Q4: Code snippet in How to Verify (Q_US6_2) — RESOLVED by operator (YES, include; FR35 [must])
+  - Q5: Contract-level deposit limits — architect decision
+  - Q6: commitBet payable vs non-payable / parameter signature — RESOLVED by operator (Option A: deposit-first, non-payable)
+  - Q7: BRD U1 commit-reveal sufficient for evaluator — RESOLVED by operator 2026-05-31 (commit-reveal confirmed sufficient; no VRF needed)
+  - Q8: UC4 blockhash zero-hash handling — RESOLVED by architect (revert with "Blockhash expired; player may claim timeout")
+  - ARCH-Q1: Reveal bot secret persistence — RESOLVED by operator 2026-05-31 (DB storage accepted; deterministic derivation rejected)
+activities: [wallet, deposit, gameplay, withdraw, fairness-audit, General]
+sa_readiness: "Approved — score 8.0; no blockers; stage advanced to arch."
+arch_readiness: "Approved — score 8.3; no blockers. F1 (reveal bot section corrected to DB persistence) and F2 (Q7/ARCH-Q1 closed in overview) fixed by orchestrator 2026-05-31."
+human_overrides: []
+reviewed_by: architect-reviewer
+changelog:
+  - date: 2026-05-31T00:50Z
+    agent: system-analyst-reviewer
+    action: reviewed srs v0.1
+    result: "needs-revision; score 6.8; 4 major findings; stage set to sa-revise"
+  - date: 2026-05-31T01:15Z
+    agent: system-analyst-reviewer
+    action: re-reviewed srs v0.1 (revision 1)
+    result: "approved; score 8.0; no blockers; F1-F9 all resolved (F10 partially-fixed); 2 new findings F15 minor F16 nit; stage advanced to arch; versions.srs confirmed 0.1"
+  - date: 2026-05-31T02:15Z
+    agent: architect-reviewer
+    action: reviewed architecture v0.1
+    result: "approved; score 8.3; no blockers; 2 major findings (F1 ARCH-Q1 contradiction, F2 Q7 not closed); 3 minor findings; stage set to done; versions.arch confirmed 0.1"
