@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Env files with secrets — never commit these
+contracts/.env
+web/.env.local
+bot/.env
+
+# Foundry build artifacts
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/run-latest.json
+
+# Next.js build
+web/.next/
+web/out/
+
+# Accidental root-level npm artifacts
+/package.json
+/package-lock.json
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*

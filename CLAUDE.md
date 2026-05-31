@@ -55,15 +55,64 @@ The human running you (the operator) is:
 
 ## 3. Repository structure
 
-Here is the initial structure. you can create files and folders.
 ```
-/contracts        # Foundry project
-  /src
-/web              # Next.js frontend
-/doc               # documentation
+/contracts/                     # Foundry project (Solidity smart contracts)
+  /src/                         # Contract source files (to be created)
+/web/                           # Next.js frontend (to be created)
+/docs/
+  el-casino.md                  # Project overview (Obsidian hub)
+  _meta/
+    changelog.md                # Doc changelog
+    state.yaml                  # Doc pipeline state
+  business/
+    brd.md                      # Business Requirements Document
+    stories/
+      us-connect-wallet.md
+      us-deposit.md
+      us-place-bet.md
+      us-verify-fairness.md
+      us-view-result.md
+      us-withdraw.md
+    reviews/                    # BA review artefacts
+  system/
+    srs.md                      # System Requirements Specification
+    use-case-diagram.puml       # PlantUML use-case diagram
+    cases/
+      uc-claim-timeout.md
+      uc-commit-bet.md
+      uc-connect-wallet.md
+      uc-deposit.md
+      uc-reveal-bet.md
+      uc-verify-fairness.md
+      uc-view-history.md
+      uc-withdraw.md
+    reviews/                    # SA review artefacts
+  architecture/
+    overview.md                 # Architecture overview
+    adrs/
+      adr-001-single-contract.md
+      adr-002-commit-reveal.md  # Commit-reveal randomness scheme
+      adr-003-frontend-stack.md
+      adr-004-payout-math.md
+      adr-005-deployment.md
+    diagrams/
+      c4-context.mmd            # C4 context diagram (Mermaid)
+      commit-reveal-sequence.mmd
+    reviews/                    # Arch review artefacts
+  project/
+    plan.md                     # WBS + milestones
+    risks.md                    # Risk register
+    reviews/                    # PM review artefacts
 /CLAUDE.md
-/README.md         # human-facing setup + the "how to verify we're not a scam" section
+/README.md                      # Human-facing setup + on-chain verification guide
 ```
+
+### Key design decisions (from ADRs)
+
+- **Randomness**: Commit-reveal scheme (ADR-002). Player commits a hashed secret, reveals after the block is mined; outcome = `hash(playerSecret, blockHash)`. No VRF dependency, no oracle cost. Documented honestly in the UI.
+- **Contract**: Single `CasinoGame.sol` (ADR-001). Holds ETH balances, runs coin-flip logic with a 2 % house edge (ADR-004).
+- **Frontend**: Next.js 14 + wagmi/viem + Tailwind (ADR-003).
+- **Deployment**: Vercel (frontend) + Foundry deploy script to Sepolia (ADR-005).
 
 
 ## 4. Definition of done

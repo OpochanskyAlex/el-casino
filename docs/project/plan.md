@@ -67,13 +67,13 @@ El Casino is a browser-based, provably-fair coin-flip casino on the Ethereum Sep
 - **Done:** `forge build` succeeds in `/contracts`; `pnpm dev` serves the Next.js app; repo pushed to GitHub with no secrets committed.
 
 ### T4 Obtain Sepolia ETH from faucet
-- **Description:** Fund the operator's deployer wallet with at least 12 Sepolia ETH (10 for house pool, ~2 for gas) using Alchemy, Infura, or sepoliafaucet.com faucets.
+- **Description:** Fund the operator's deployer wallet with at least 1.2 Sepolia ETH (0.8 for house pool, ~0.4 for gas) using Alchemy, Infura, or sepoliafaucet.com faucets.
 - **Owner:** Operator
 - **Depends-on:** —
 - **Size:** XS
 - **Tokens:** 0
 - **Milestone:** M1
-- **Done:** Deployer wallet shows >= 12 ETH on Sepolia Etherscan.
+- **Done:** Deployer wallet shows >= 1.2 ETH on Sepolia Etherscan.
 
 ### T5 Obtain Etherscan API key and Alchemy/Infura RPC URL
 - **Description:** Create Etherscan account and generate an API key; create Alchemy or Infura account and obtain a Sepolia JSON-RPC endpoint URL.
@@ -197,13 +197,13 @@ El Casino is a browser-based, provably-fair coin-flip casino on the Ethereum Sep
 - **Done:** Etherscan contract page shows "Contract Source Code Verified"; ABI tab is populated; `HOUSE_EDGE_BPS` visible as a constant in source.
 
 ### T17 Fund house pool via houseDeposit()
-- **Description:** Call `houseDeposit()` with 10 ETH using `cast send` or Etherscan's "Write Contract" tab; confirm `HouseDeposited` event on Etherscan.
+- **Description:** Call `houseDeposit()` with 0.8 ETH using `cast send` or Etherscan's "Write Contract" tab; confirm `HouseDeposited` event on Etherscan.
 - **Owner:** Operator
 - **Depends-on:** T16
 - **Size:** XS
 - **Tokens:** 0
 - **Milestone:** M2
-- **Done:** `houseBalance` reads 10 ETH from `cast call`; `HouseDeposited` event visible on Etherscan.
+- **Done:** `houseBalance` reads 0.8 ETH from `cast call`; `HouseDeposited` event visible on Etherscan.
 
 ---
 
