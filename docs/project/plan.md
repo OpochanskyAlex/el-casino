@@ -10,6 +10,9 @@ refs:
   - {doc: brd, version: 0.1}
   - {doc: srs, version: 0.1}
   - {doc: arch, version: 0.1}
+activities: [wallet, deposit, gameplay, withdraw, fairness-audit, General]
+reviewed_by: project-manager-reviewer
+score: 8.1
 updated: 2026-05-31
 tags: [project-docs, plan]
 ---
@@ -112,10 +115,19 @@ El Casino is a browser-based, provably-fair coin-flip casino on the Ethereum Sep
 - **Milestone:** M2
 - **Done:** `deposit()` credits balance, emits event, reverts on range violations; view functions return correct types.
 
+### T8a Implement withdraw() for players
+- **Description:** Implement `withdraw(uint256 amount) external nonReentrant` with checks-effects-interactions pattern (balance deducted before ETH transfer), `playerBalances[msg.sender] >= amount` check, ETH transfer via `call{value: amount}("")`, and `Withdrawn` event emission (FR29, FR30, NFR5).
+- **Owner:** Claude
+- **Depends-on:** T8
+- **Size:** M
+- **Tokens:** 9,000
+- **Milestone:** M2
+- **Done:** `withdraw()` transfers ETH to player, debits balance, emits `Withdrawn`; reentrancy guard applied; reverts on insufficient balance with canonical error message.
+
 ### T9 Implement commitBet() with all pre-checks
 - **Description:** Implement `commitBet(uint256 betAmount, bytes32 commitHash, uint8 choice)` with the five pre-checks from the SRS API contract (bet range, player balance, pending count, single portfolio liquidity check using FR18 formula), balance deduction, bet record creation, `totalPendingReserved` update, and `BetCommitted` event emission.
 - **Owner:** Claude
-- **Depends-on:** T8
+- **Depends-on:** T8a
 - **Size:** L
 - **Tokens:** 20,000
 - **Milestone:** M2
@@ -327,10 +339,10 @@ El Casino is a browser-based, provably-fair coin-flip casino on the Ethereum Sep
 - **Milestone:** M4
 - **Done:** Bot starts, connects to Sepolia, subscribes to events; `revealBet()` called within 5 blocks of `BetCommitted`; `BetRevealed` event confirmed in logs; tx hash logged.
 
-### T32 Add DB persistence for secret-to-betId mapping
-- **Description:** Integrate PostgreSQL (or Redis) client into the reveal bot; on commitBet submission from frontend, persist `{betId, secret, commitBlock, status}` before broadcasting the tx; on bot start, query pending records and resume processing unresolved bets; handle bot restart gracefully (no double-reveal).
+### T32 Add PostgreSQL persistence for secret-to-betId mapping
+- **Description:** Integrate PostgreSQL client (Railway managed DB) into the reveal bot; persist `{betId, secret, commitBlock, status}` before broadcasting each reveal tx; on bot start, query pending records and resume unresolved bets; handle restart gracefully (no double-reveal). Database choice confirmed: PostgreSQL (Q-PLAN-2 resolved 2026-05-31).
 - **Owner:** Claude
-- **Depends-on:** T3
+- **Depends-on:** T3, T16
 - **Size:** M
 - **Tokens:** 12,000
 - **Milestone:** M4
@@ -361,7 +373,7 @@ El Casino is a browser-based, provably-fair coin-flip casino on the Ethereum Sep
 ### T35 End-to-end smoke test: all user stories US1–US6
 - **Description:** Execute manual walkthrough of all six user stories (US1 connect, US2 deposit, US3 place bet, US4 view result, US5 withdraw, US6 verify fairness) against the deployed Sepolia contract; log pass/fail per acceptance criterion.
 - **Owner:** Operator+Claude
-- **Depends-on:** T34, T29
+- **Depends-on:** T34, T29, T28
 - **Size:** M
 - **Tokens:** 8,000
 - **Milestone:** M5
@@ -545,14 +557,12 @@ The following tasks are on the critical path. A delay in any of them delays M5.
 
 | Metric | Value |
 |---|---|
-| Total tasks | 42 |
-| Total token estimate | 376,000 |
+| Total tasks | 43 (T1–T42 + T8a) |
+| Total token estimate | 385,000 |
 | T-shirt: XS | 7 (T1, T2, T4, T5, T6, T17, T40) |
-| T-shirt: S | 10 (T3, T12, T15, T16, T20, T29, T30, T33, T37, T38, T39) |
-| T-shirt: M | 17 (T7, T8, T11, T14, T18, T21, T22, T25, T26, T27, T28, T32, T34, T35, T37, T41) |
-| T-shirt: L | 8 (T9, T10, T13, T23, T24, T31, T42, T13) |
+| T-shirt: S | 11 (T3, T12, T15, T16, T20, T29, T30, T33, T37, T38, T39) |
+| T-shirt: M | 18 (T7, T8, T8a, T11, T14, T18, T21, T22, T25, T26, T27, T28, T32, T34, T35, T37, T41) |
+| T-shirt: L | 7 (T9, T10, T13, T23, T24, T31, T42) |
 | T-shirt: XL | 0 |
-| Critical path | T7 → T9 → T10 → T13 → T14 → T15 → T16 → T24 → T25 → T34 → T39 |
+| Critical path | T7 → T8a → T9 → T10 → T13 → T14 → T15 → T16 → [T31 ‖ T24→T25] → T34 → T39 |
 | Highest-risk task | T9 (commitBet, 5 pre-checks + liquidity math) / T13 (Foundry test suite) / T24 (browser secret management) |
-
-> Note: T-shirt breakdown counts corrected after tabulation. XS=7, S=11, M=16, L=8, XL=0. Token total of 376,000 is across all 42 tasks; non-Claude tasks contribute 0 tokens. This sits at the high end of the M aggregate range but is distributed across many tasks, consistent with individual task sizing.

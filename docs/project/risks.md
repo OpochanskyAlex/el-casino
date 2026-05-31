@@ -10,6 +10,7 @@ refs:
   - {doc: brd, version: 0.1}
   - {doc: srs, version: 0.1}
   - {doc: arch, version: 0.1}
+activities: [wallet, deposit, gameplay, withdraw, fairness-audit, General]
 updated: 2026-05-31
 tags: [project-docs, risks]
 ---

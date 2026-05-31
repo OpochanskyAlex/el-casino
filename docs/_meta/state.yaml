@@ -1,10 +1,10 @@
 workflow: doc-from-idea
 run_mode: full
 stages_requested: [ba, sa, arch, pm]
-stage: pm-review
-last_agent: project-manager
-last_score: 8.3
-last_score_at: 2026-05-31T02:15Z
+stage: done
+last_agent: project-manager-reviewer
+last_score: 8.1
+last_score_at: 2026-05-31T03:15Z
 revisions:
   brd: 1
   srs: 1
@@ -13,7 +13,7 @@ versions:
   brd: 0.1
   srs: 0.1
   arch: 0.1
-  plan: 0.1 (pending review)
+  plan: 0.1
 open_questions:
   - Q1: FR17/FR18 single vs dual require() — architect decision
   - Q2: Payout overflow check — trivially safe; architect confirm
@@ -27,8 +27,9 @@ open_questions:
 activities: [wallet, deposit, gameplay, withdraw, fairness-audit, General]
 sa_readiness: "Approved — score 8.0; no blockers; stage advanced to arch."
 arch_readiness: "Approved — score 8.3; no blockers. F1 (reveal bot section corrected to DB persistence) and F2 (Q7/ARCH-Q1 closed in overview) fixed by orchestrator 2026-05-31."
+pm_readiness: "Approved — score 8.1; no blockers. F1 (withdraw() Solidity task missing) is major but non-blocking; patch before build. F2 (risk triggers absent) and F3 (T28 dep missing from T35) are minor editorial fixes."
 human_overrides: []
-reviewed_by: architect-reviewer
+reviewed_by: project-manager-reviewer
 changelog:
   - date: 2026-05-31T00:50Z
     agent: system-analyst-reviewer
@@ -42,3 +43,7 @@ changelog:
     agent: architect-reviewer
     action: reviewed architecture v0.1
     result: "approved; score 8.3; no blockers; 2 major findings (F1 ARCH-Q1 contradiction, F2 Q7 not closed); 3 minor findings; stage set to done; versions.arch confirmed 0.1"
+  - date: 2026-05-31T03:15Z
+    agent: project-manager-reviewer
+    action: reviewed plan v0.1
+    result: "approved; score 8.1; no blockers; F1 major (withdraw() Solidity task orphaned FR29/FR30); F2-F4 minor; F5-F6 nit; stage set to done; versions.plan confirmed 0.1"
