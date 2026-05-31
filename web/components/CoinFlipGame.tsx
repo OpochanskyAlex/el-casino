@@ -76,7 +76,7 @@ export function CoinFlipGame({ onBalanceChange }: { onBalanceChange: () => void 
     if (address) setPendingBets(loadPending(address))
   }, [address])
 
-  // After commit tx confirmed: extract betId from BetCommitted event
+  // After commit tx confirmed: extract betId, save to localStorage, send secret to bot
   useEffect(() => {
     if (!isSuccess || !receipt || !address) return
     const log = receipt.logs.find(l =>
@@ -87,7 +87,7 @@ export function CoinFlipGame({ onBalanceChange }: { onBalanceChange: () => void 
       const decoded = decodeEventLog({ abi: CASINO_ABI, eventName: 'BetCommitted', data: log.data, topics: log.topics as [`0x${string}`, ...`0x${string}`[]] })
       const args = decoded.args as Record<string, unknown>
       const betId = String(args.betId)
-      const secret = sessionStorage.getItem(`casino_secret_pending`) || ''
+      const secret = sessionStorage.getItem('casino_secret_pending') || ''
       if (!secret) return
       const newBet: PendingBet = {
         betId,
@@ -100,6 +100,23 @@ export function CoinFlipGame({ onBalanceChange }: { onBalanceChange: () => void 
       setPendingBets(updated)
       savePending(address, updated)
       sessionStorage.removeItem('casino_secret_pending')
+
+      // Send secret to reveal bot so it can call revealBet() on-chain
+      const botUrl = process.env.NEXT_PUBLIC_BOT_URL || 'http://localhost:3001'
+      fetch(`${botUrl}/secret`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          betId,
+          secret,
+          player: address,
+          amount: String(args.amount),
+          commitBlock: String(args.blockNumber),
+        }),
+      }).catch(() => {
+        // Bot may not be running in dev; player can still claim timeout
+        console.warn('Could not reach reveal bot — player may need to claim timeout')
+      })
     } catch {}
     reset()
     setBetAmount('')
