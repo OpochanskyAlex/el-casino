@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useAccount, usePublicClient } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { formatEther } from 'viem'
-import { CONTRACT_ADDRESS, CASINO_ABI, SEPOLIA_EXPLORER } from '@/lib/contract'
+import { SEPOLIA_EXPLORER } from '@/lib/contract'
 
 interface HistoryRow {
   betId: string
@@ -11,55 +11,43 @@ interface HistoryRow {
   amount: bigint
   payout: bigint
   txHash: string
-  blockNumber: bigint
 }
 
 export function GameHistory({ refreshTrigger }: { refreshTrigger?: number }) {
   const { address, isConnected } = useAccount()
-  const publicClient = usePublicClient()
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!address || !publicClient) return
+    if (!address) return
     async function load() {
       setLoading(true)
       setError('')
       try {
-        const currentBlock = await publicClient!.getBlockNumber()
-        const fromBlock = currentBlock > BigInt(10000) ? currentBlock - BigInt(10000) : BigInt(0)
-
-        const logs = await publicClient!.getContractEvents({
-          address: CONTRACT_ADDRESS,
-          abi: CASINO_ABI,
-          eventName: 'BetRevealed',
-          args: { player: address },
-          fromBlock,
-          toBlock: 'latest',
-        })
-
-        const parsed = logs.slice(-20).reverse().map(l => {
-          const a = l.args as { betId: bigint; choice: number; outcome: number; amount: bigint; payout: bigint }
-          return {
-            betId: a.betId.toString(),
-            choice: Number(a.choice),
-            outcome: Number(a.outcome),
-            amount: a.amount,
-            payout: a.payout,
-            txHash: l.transactionHash,
-            blockNumber: l.blockNumber,
-          }
-        })
-        setRows(parsed)
+        const botUrl = process.env.NEXT_PUBLIC_BOT_URL || 'http://localhost:3001'
+        const res = await fetch(`${botUrl}/history?player=${address}`)
+        if (!res.ok) throw new Error(`Bot returned ${res.status}`)
+        const data: Array<{
+          bet_id: string; choice: number; outcome: number
+          amount: string; payout: string; reveal_tx: string
+        }> = await res.json()
+        setRows(data.map(r => ({
+          betId:   r.bet_id,
+          choice:  Number(r.choice),
+          outcome: Number(r.outcome),
+          amount:  BigInt(r.amount),
+          payout:  BigInt(r.payout ?? '0'),
+          txHash:  r.reveal_tx,
+        })))
       } catch (err) {
         console.error('GameHistory:', err)
-        setError('Failed to load history')
+        setError('Could not load history')
       }
       setLoading(false)
     }
     load()
-  }, [address, publicClient, refreshTrigger])
+  }, [address, refreshTrigger])
 
   if (!isConnected) return null
 

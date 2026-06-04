@@ -74,22 +74,26 @@ async function migrate() {
       updated_at   TIMESTAMPTZ DEFAULT NOW()
     )
   `)
+  // Add outcome columns if this is an existing DB without them
+  await db.query(`ALTER TABLE bets ADD COLUMN IF NOT EXISTS choice  INT`)
+  await db.query(`ALTER TABLE bets ADD COLUMN IF NOT EXISTS outcome INT`)
+  await db.query(`ALTER TABLE bets ADD COLUMN IF NOT EXISTS payout  TEXT`)
   console.log('[DB] Migration applied')
 }
 
-async function saveBet({ betId, player, amount, secret, commitBlock }) {
+async function saveBet({ betId, player, amount, secret, commitBlock, choice }) {
   await db.query(
-    `INSERT INTO bets (bet_id, player, amount, secret, commit_block, status)
-     VALUES ($1, $2, $3, $4, $5, 'pending')
+    `INSERT INTO bets (bet_id, player, amount, secret, commit_block, status, choice)
+     VALUES ($1, $2, $3, $4, $5, 'pending', $6)
      ON CONFLICT (bet_id) DO NOTHING`,
-    [betId.toString(), player, amount.toString(), secret, commitBlock.toString()]
+    [betId.toString(), player, amount.toString(), secret, commitBlock.toString(), choice ?? null]
   )
 }
 
-async function markRevealed(betId, txHash) {
+async function markRevealed(betId, txHash, outcome, payout) {
   await db.query(
-    `UPDATE bets SET status = 'revealed', reveal_tx = $2, updated_at = NOW() WHERE bet_id = $1`,
-    [betId.toString(), txHash]
+    `UPDATE bets SET status = 'revealed', reveal_tx = $2, outcome = $3, payout = $4, updated_at = NOW() WHERE bet_id = $1`,
+    [betId.toString(), txHash, outcome ?? null, payout != null ? payout.toString() : null]
   )
 }
 
@@ -150,7 +154,21 @@ async function revealBet(betId, secret, commitBlock) {
     console.log(`[ETH] Bet ${betId}: tx sent ${tx.hash}`)
     const receipt = await tx.wait(1)
     console.log(`[ETH] Bet ${betId}: confirmed in block ${receipt.blockNumber}`)
-    await markRevealed(betId, tx.hash)
+
+    // Parse BetRevealed event from receipt to get outcome and payout
+    let outcome, payout
+    const iface = new ethers.Interface(CONTRACT_ABI)
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log)
+        if (parsed && parsed.name === 'BetRevealed') {
+          outcome = Number(parsed.args.outcome)
+          payout  = parsed.args.payout
+          break
+        }
+      } catch {}
+    }
+    await markRevealed(betId, tx.hash, outcome, payout)
   } catch (err) {
     const msg = err?.reason || err?.message || String(err)
     console.error(`[ETH] Bet ${betId}: reveal failed — ${msg}`)
@@ -230,13 +248,13 @@ function startApiServer() {
       req.on('data', chunk => { body += chunk })
       req.on('end', async () => {
         try {
-          const { betId, secret, player, amount, commitBlock } = JSON.parse(body)
+          const { betId, secret, player, amount, commitBlock, choice } = JSON.parse(body)
           if (!betId || !secret || !player || !amount || !commitBlock) {
             res.writeHead(400)
             res.end(JSON.stringify({ error: 'Missing fields' }))
             return
           }
-          await saveBet({ betId: BigInt(betId), player, amount: BigInt(amount), secret, commitBlock })
+          await saveBet({ betId: BigInt(betId), player, amount: BigInt(amount), secret, commitBlock, choice })
           console.log(`[API] Received secret for bet ${betId}, queuing reveal…`)
           res.writeHead(200)
           res.end(JSON.stringify({ ok: true }))
@@ -255,6 +273,31 @@ function startApiServer() {
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200)
       res.end(JSON.stringify({ status: 'ok', address: wallet?.address }))
+      return
+    }
+
+    if (req.method === 'GET' && req.url?.startsWith('/history')) {
+      const player = new URL(req.url, 'http://localhost').searchParams.get('player')
+      if (!player) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Missing player address' }))
+        return
+      }
+      try {
+        const { rows } = await db.query(
+          `SELECT bet_id, player, amount, choice, outcome, payout, reveal_tx, updated_at
+           FROM bets
+           WHERE lower(player) = lower($1) AND status = 'revealed'
+           ORDER BY bet_id DESC LIMIT 20`,
+          [player]
+        )
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(rows))
+      } catch (err) {
+        console.error('[API] History error:', err)
+        res.writeHead(500)
+        res.end(JSON.stringify({ error: 'Internal error' }))
+      }
       return
     }
 
