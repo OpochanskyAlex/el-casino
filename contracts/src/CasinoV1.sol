@@ -126,7 +126,6 @@ contract CasinoV1 is Ownable, ReentrancyGuard {
      */
     function deposit() external payable {
         require(msg.value >= MIN_BET, "Deposit below minimum");
-        require(msg.value <= MAX_BET, "Deposit above maximum");
         playerBalances[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }

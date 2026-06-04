@@ -1,9 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useAccount, usePublicClient, useBlockNumber } from 'wagmi'
+import { useAccount, usePublicClient } from 'wagmi'
 import { formatEther } from 'viem'
-import { sepolia } from 'wagmi/chains'
-import { CONTRACT_ADDRESS, SEPOLIA_EXPLORER } from '@/lib/contract'
+import { CONTRACT_ADDRESS, CASINO_ABI, SEPOLIA_EXPLORER } from '@/lib/contract'
 
 interface HistoryRow {
   betId: string
@@ -15,34 +14,31 @@ interface HistoryRow {
   blockNumber: bigint
 }
 
-export function GameHistory() {
+export function GameHistory({ refreshTrigger }: { refreshTrigger?: number }) {
   const { address, isConnected } = useAccount()
   const publicClient = usePublicClient()
-  const { data: blockNumber } = useBlockNumber({ chainId: sepolia.id })
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!address || !publicClient || !blockNumber) return
+    if (!address || !publicClient) return
     async function load() {
       setLoading(true)
+      setError('')
       try {
-        const fromBlock = blockNumber! > BigInt(10000) ? blockNumber! - BigInt(10000) : BigInt(0)
-        const logs = await publicClient!.getLogs({
+        const currentBlock = await publicClient!.getBlockNumber()
+        const fromBlock = currentBlock > BigInt(10000) ? currentBlock - BigInt(10000) : BigInt(0)
+
+        const logs = await publicClient!.getContractEvents({
           address: CONTRACT_ADDRESS,
-          event: {
-            type: 'event', name: 'BetRevealed',
-            inputs: [
-              {name:'betId',type:'uint256',indexed:true},{name:'player',type:'address',indexed:true},
-              {name:'choice',type:'uint8',indexed:false},{name:'outcome',type:'uint8',indexed:false},
-              {name:'amount',type:'uint256',indexed:false},{name:'payout',type:'uint256',indexed:false},
-              {name:'secret',type:'bytes32',indexed:false},{name:'blockHashUsed',type:'bytes32',indexed:false}
-            ]
-          },
+          abi: CASINO_ABI,
+          eventName: 'BetRevealed',
           args: { player: address },
           fromBlock,
           toBlock: 'latest',
         })
+
         const parsed = logs.slice(-20).reverse().map(l => {
           const a = l.args as { betId: bigint; choice: number; outcome: number; amount: bigint; payout: bigint }
           return {
@@ -56,11 +52,14 @@ export function GameHistory() {
           }
         })
         setRows(parsed)
-      } catch {}
+      } catch (err) {
+        console.error('GameHistory:', err)
+        setError('Failed to load history')
+      }
       setLoading(false)
     }
     load()
-  }, [address, publicClient, blockNumber])
+  }, [address, publicClient, refreshTrigger])
 
   if (!isConnected) return null
 
@@ -71,6 +70,8 @@ export function GameHistory() {
       </div>
       {loading ? (
         <div className="px-5 py-6 text-sm text-gray-500">Loading history…</div>
+      ) : error ? (
+        <div className="px-5 py-6 text-sm text-red-400">{error}</div>
       ) : rows.length === 0 ? (
         <div className="px-5 py-6 text-sm text-gray-500">No completed rounds yet.</div>
       ) : (

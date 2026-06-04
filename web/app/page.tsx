@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { WalletConnect } from '@/components/WalletConnect'
 import { BalancePanel } from '@/components/BalancePanel'
 import { DepositForm } from '@/components/DepositForm'
@@ -10,6 +10,7 @@ import { CONTRACT_ADDRESS, SEPOLIA_EXPLORER } from '@/lib/contract'
 
 export default function Home() {
   const refetchBalance = useRef<() => void>(() => {})
+  const [historyRefresh, setHistoryRefresh] = useState(0)
 
   const handleRefetch = useCallback((fn: () => void) => {
     refetchBalance.current = fn
@@ -17,6 +18,7 @@ export default function Home() {
 
   const triggerRefetch = useCallback(() => {
     refetchBalance.current()
+    setHistoryRefresh(n => n + 1)
   }, [])
 
   return (
@@ -56,7 +58,7 @@ export default function Home() {
         </div>
 
         {/* History */}
-        <GameHistory />
+        <GameHistory refreshTrigger={historyRefresh} />
       </main>
 
       {/* Footer */}

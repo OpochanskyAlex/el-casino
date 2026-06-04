@@ -24,7 +24,6 @@ export function DepositForm({ onSuccess }: { onSuccess: () => void }) {
     const n = parseFloat(val)
     if (!val || isNaN(n)) return 'Enter an amount'
     if (n < 0.001) return 'Minimum deposit is 0.001 ETH'
-    if (n > 0.1) return 'Maximum deposit is 0.1 ETH'
     return ''
   }
 
@@ -55,8 +54,7 @@ export function DepositForm({ onSuccess }: { onSuccess: () => void }) {
             type="number"
             step="0.001"
             min="0.001"
-            max="0.1"
-            placeholder="0.001 – 0.1"
+            placeholder="Min 0.001 ETH"
             value={amount}
             onChange={e => { setAmount(e.target.value); setValidationError('') }}
             disabled={!isConnected || isLoading}

@@ -76,10 +76,10 @@ contract CasinoV1Test is Test {
         casino.deposit{value: 0.0009 ether}();
     }
 
-    function test_deposit_aboveMax_reverts() public {
+    function test_deposit_aboveMax_succeeds() public {
         vm.prank(player1);
-        vm.expectRevert("Deposit above maximum");
-        casino.deposit{value: 0.11 ether}();
+        casino.deposit{value: 0.5 ether}();
+        assertEq(casino.getBalance(player1), 0.5 ether);
     }
 
     function test_deposit_atMin_succeeds() public {
