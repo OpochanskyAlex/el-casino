@@ -139,28 +139,31 @@ export function CoinFlipGame({ onBalanceChange }: { onBalanceChange: () => void 
             args: [BigInt(bet.betId)],
           }) as { status: number }
           if (betData.status === 1) {
-            // Revealed — fetch result from bot DB (avoids Alchemy block-range limit)
-            try {
-              const botUrl = process.env.NEXT_PUBLIC_BOT_URL || 'http://localhost:3001'
-              const histRes = await fetch(`${botUrl}/history?player=${address}`)
-              if (histRes.ok) {
-                const history: Array<{
-                  bet_id: string; choice: number; outcome: number
-                  amount: string; payout: string; reveal_tx: string
-                }> = await histRes.json()
-                const found = history.find(r => r.bet_id === bet.betId)
-                if (found) {
-                  setResult({
-                    betId: bet.betId,
-                    outcome: Number(found.outcome),
-                    choice: Number(found.choice),
-                    amount: BigInt(found.amount),
-                    payout: BigInt(found.payout ?? '0'),
-                    txHash: found.reveal_tx,
-                  })
+            // Revealed — poll bot DB until the outcome row appears (bot writes
+            // to DB after tx confirms, so there's a brief race with the frontend)
+            const botUrl = process.env.NEXT_PUBLIC_BOT_URL || 'http://localhost:3001'
+            type HistoryEntry = { bet_id: string; choice: number; outcome: number; amount: string; payout: string; reveal_tx: string }
+            let found: HistoryEntry | undefined
+            for (let attempt = 0; attempt < 6 && !found; attempt++) {
+              if (attempt > 0) await new Promise(r => setTimeout(r, 2000))
+              try {
+                const histRes = await fetch(`${botUrl}/history?player=${address}`)
+                if (histRes.ok) {
+                  const history: HistoryEntry[] = await histRes.json()
+                  found = history.find(r => r.bet_id === bet.betId)
                 }
-              }
-            } catch {}
+              } catch {}
+            }
+            if (found) {
+              setResult({
+                betId: bet.betId,
+                outcome: Number(found.outcome),
+                choice: Number(found.choice),
+                amount: BigInt(found.amount),
+                payout: BigInt(found.payout ?? '0'),
+                txHash: found.reveal_tx,
+              })
+            }
             onBalanceChange()
           } else if (betData.status === 2) {
             onBalanceChange() // refunded
