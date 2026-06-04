@@ -112,6 +112,7 @@ export function CoinFlipGame({ onBalanceChange }: { onBalanceChange: () => void 
           player: address,
           amount: String(args.amount),
           commitBlock: String(args.blockNumber),
+          choice,
         }),
       }).catch(() => {
         // Bot may not be running in dev; player can still claim timeout
@@ -138,33 +139,28 @@ export function CoinFlipGame({ onBalanceChange }: { onBalanceChange: () => void 
             args: [BigInt(bet.betId)],
           }) as { status: number }
           if (betData.status === 1) {
-            // Revealed — fetch the BetRevealed event for result details
-            const logs = await publicClient!.getLogs({
-              address: CONTRACT_ADDRESS,
-              event: {
-                type: 'event', name: 'BetRevealed',
-                inputs: [
-                  {name:'betId',type:'uint256',indexed:true},{name:'player',type:'address',indexed:true},
-                  {name:'choice',type:'uint8',indexed:false},{name:'outcome',type:'uint8',indexed:false},
-                  {name:'amount',type:'uint256',indexed:false},{name:'payout',type:'uint256',indexed:false},
-                  {name:'secret',type:'bytes32',indexed:false},{name:'blockHashUsed',type:'bytes32',indexed:false}
-                ]
-              },
-              args: { betId: BigInt(bet.betId) },
-              fromBlock: BigInt(bet.commitBlock),
-              toBlock: 'latest',
-            })
-            if (logs[0]) {
-              const a = logs[0].args as Record<string, unknown>
-              setResult({
-                betId: bet.betId,
-                outcome: Number(a.outcome),
-                choice: Number(a.choice),
-                amount: a.amount as bigint,
-                payout: a.payout as bigint,
-                txHash: logs[0].transactionHash,
-              })
-            }
+            // Revealed — fetch result from bot DB (avoids Alchemy block-range limit)
+            try {
+              const botUrl = process.env.NEXT_PUBLIC_BOT_URL || 'http://localhost:3001'
+              const histRes = await fetch(`${botUrl}/history?player=${address}`)
+              if (histRes.ok) {
+                const history: Array<{
+                  bet_id: string; choice: number; outcome: number
+                  amount: string; payout: string; reveal_tx: string
+                }> = await histRes.json()
+                const found = history.find(r => r.bet_id === bet.betId)
+                if (found) {
+                  setResult({
+                    betId: bet.betId,
+                    outcome: Number(found.outcome),
+                    choice: Number(found.choice),
+                    amount: BigInt(found.amount),
+                    payout: BigInt(found.payout ?? '0'),
+                    txHash: found.reveal_tx,
+                  })
+                }
+              }
+            } catch {}
             onBalanceChange()
           } else if (betData.status === 2) {
             onBalanceChange() // refunded

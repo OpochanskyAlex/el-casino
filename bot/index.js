@@ -155,18 +155,20 @@ async function revealBet(betId, secret, commitBlock) {
     const receipt = await tx.wait(1)
     console.log(`[ETH] Bet ${betId}: confirmed in block ${receipt.blockNumber}`)
 
-    // Parse BetRevealed event from receipt to get outcome and payout
+    // Compute outcome using the same formula as the contract:
+    // outcome = keccak256(secret, blockhash(commitBlock)) % 2
     let outcome, payout
-    const iface = new ethers.Interface(CONTRACT_ABI)
-    for (const log of receipt.logs) {
-      try {
-        const parsed = iface.parseLog(log)
-        if (parsed && parsed.name === 'BetRevealed') {
-          outcome = Number(parsed.args.outcome)
-          payout  = parsed.args.payout
-          break
-        }
-      } catch {}
+    const commitBlockData = await provider.getBlock(Number(commitBlock))
+    if (commitBlockData?.hash) {
+      const packed = ethers.solidityPacked(['bytes32', 'bytes32'], [secret, commitBlockData.hash])
+      outcome = Number(BigInt(ethers.keccak256(packed)) % 2n)
+
+      const { rows } = await db.query('SELECT choice, amount FROM bets WHERE bet_id = $1', [betId.toString()])
+      if (rows[0]) {
+        const won = outcome === Number(rows[0].choice)
+        const betAmountWei = BigInt(rows[0].amount)
+        payout = won ? (betAmountWei * 9800n / 5000n) : 0n
+      }
     }
     await markRevealed(betId, tx.hash, outcome, payout)
   } catch (err) {
@@ -288,6 +290,7 @@ function startApiServer() {
           `SELECT bet_id, player, amount, choice, outcome, payout, reveal_tx, updated_at
            FROM bets
            WHERE lower(player) = lower($1) AND status = 'revealed'
+             AND outcome IS NOT NULL AND choice IS NOT NULL
            ORDER BY bet_id DESC LIMIT 20`,
           [player]
         )
